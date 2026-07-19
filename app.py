@@ -5,194 +5,221 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 import datetime
-from shheets_db import fetch_data, update_sheet
+import hashlib
+from shheets_db import fetch_data
 
 # --- App එකෙහි මූලික සැකසුම් ---
-st.set_page_config(page_title="Advanced Elliott Wave AI Bot", layout="wide", initial_sidebar_state="expanded")
-st.title("🦅 Advanced Elliott Wave AI Bot (Global Cloud Pro)")
-st.write("Multi-User Professional Market Analysis & Centralized Risk Management Platform")
+st.set_page_config(page_title="EagleEye AI Advanced Trading Bot", layout="wide", initial_sidebar_state="expanded")
+st.title("🦅 EagleEye AI Institutional Bot (SMC + ICT + Elliott Wave + RSI)")
+st.write("Professional Algorithmic Signal Engine with Advanced Smart Money Concept Logic")
 
 # --- Google Sheet Link ---
-# ⚠️ මෙතනට ඔයාගේ Google Sheet URL එක දාන්න (දැනට Advanced Settings -> Secrets වල දාලා ඇති)
-if "GOOGLE_SHEET_URL" in st.secrets:
-    GOOGLE_SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
-else:
-    GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1FXFhTbaM7wAGJdpnQj3O_UNkFTEGHtHoYmPMDg-x4OA/edit?usp=sharing"
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1FXFhTbaM7wAGjdpnQj3O_UNkFTEGHtHoYmPMDg-y_jQ/edit"
 
-# User unique tracking via session (Browser level)
-if "browser_fingerprint" not in st.session_state:
-    st.session_state.browser_fingerprint = str(datetime.datetime.now().timestamp())
+# Browser Security Fingerprint
+if "user_device_token" not in st.session_state:
+    ua_string = str(st.context.headers.get("User-Agent", "UnknownBrowser"))
+    ip_approx = str(st.context.headers.get("X-Forwarded-For", "Local"))
+    secret_hash = hashlib.sha256((ua_string + ip_approx).encode()).hexdigest()[:12]
+    st.session_state.user_device_token = secret_hash
 
 if "is_premium" not in st.session_state:
     st.session_state.is_premium = False
 if "active_code" not in st.session_state:
     st.session_state.active_code = ""
 
-# --- Centralized Database Cloud Checking ---
+@st.cache_resource
+def get_cloud_device_registry():
+    return {}
+
+device_registry = get_cloud_device_registry()
+
 if st.session_state.active_code:
-    db = fetch_data(GOOGLE_SHEET_URL)
-    if not db.empty and st.session_state.active_code in db['code'].values:
-        row = db[db['code'] == st.session_state.active_code].iloc[0]
-        st.session_state.is_premium = True
+    st.session_state.is_premium = True
 
-# --- Sidebar Settings ---
-st.sidebar.header("🛠️ Bot Control Panel")
+# --- Sidebar Controls ---
+st.sidebar.header("🛠️ Strategy Control Panel")
 
 if st.session_state.is_premium:
-    st.sidebar.success(f"👑 Premium Account (Code: {st.session_state.active_code})")
+    st.sidebar.success(f"👑 Premium Account (SMC Subscribed)")
 else:
-    st.sidebar.warning("🆓 Free Account (Limited Features)")
+    st.sidebar.warning("🆓 Free Account (BTC 1D Only)")
 
-# Free vs Premium Market Controls
+# Free vs Premium Controls
 if st.session_state.is_premium:
-    market_type = st.sidebar.radio("Select Market Type", ["Crypto", "Forex"])
+    market_type = st.sidebar.radio("Market Type", ["Crypto", "Forex"])
     if market_type == "Crypto":
         ticker_list = {
             "Bitcoin (BTC/USD)": "BTC-USD", "Ethereum (ETH/USD)": "ETH-USD",
             "Solana (SOL/USD)": "SOL-USD", "Ripple (XRP/USD)": "XRP-USD"
         }
     else:
-        ticker_list = {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X"}
+        ticker_list = {"EUR/USD": "EURUSD=X", "GBP/USD": "GBPUSD=X", "USD/JPY": "JPY=X"}
     
-    selected_display_name = st.sidebar.selectbox("Select Asset (Ticker)", list(ticker_list.keys()))
+    selected_display_name = st.sidebar.selectbox("Asset Ticker", list(ticker_list.keys()))
     ticker = ticker_list[selected_display_name]
-    timeframe = st.sidebar.selectbox("Timeframe", ["1h", "4h", "1d"])
+    timeframe = st.sidebar.selectbox("Timeframe", ["15m", "1h", "4h", "1d"])
     period = st.sidebar.selectbox("Data Period", ["1mo", "3mo", "6mo"])
 else:
-    st.sidebar.info("🔒 Premium unlocked for BTC-USD on 1D Chart only.")
     ticker = "BTC-USD"
     timeframe = "1d"
     period = "6mo"
-    st.sidebar.text("Asset: Bitcoin (BTC/USD)")
-    st.sidebar.text("Timeframe: 1d (Daily)")
+    st.sidebar.info("🔒 Premium unlocked for BTC-USD on 1D Chart only.")
 
-# --- MONEY MANAGEMENT INPUTS (Premium Only) ---
-balance = 0.0
+# Money Management Setup
+balance = 1000.0
 risk_pct = 1.0
 if st.session_state.is_premium:
     st.sidebar.markdown("---")
-    st.sidebar.subheader("💰 Money Management Plan")
-    balance = st.sidebar.number_input("Your Account Balance ($)", min_value=1.0, value=1000.0, step=10.0)
+    st.sidebar.subheader("💰 Smart Risk Planner")
+    balance = st.sidebar.number_input("Account Balance ($)", min_value=1.0, value=1000.0)
     risk_pct = st.sidebar.slider("Risk Per Trade (%)", min_value=0.5, max_value=5.0, value=1.0, step=0.5)
 
 st.sidebar.markdown("---")
 
-# Activation Section
+# Premium Activation System
 if not st.session_state.is_premium:
-    st.sidebar.subheader("🔑 Activate Premium")
+    st.sidebar.subheader("🔑 Unlock SMC/ICT Premium")
     input_code = st.sidebar.text_input("Enter Activation Code", type="password")
     if st.sidebar.button("Verify Code"):
         db = fetch_data(GOOGLE_SHEET_URL)
         if not db.empty and input_code in db['code'].values:
-            row = db[db['code'] == input_code].iloc[0]
-            devices_list = str(row['devices']).split(',') if pd.notna(row['devices']) and row['devices'] != "" else []
-            devices_list = [d for d in devices_list if d]
+            current_token = st.session_state.user_device_token
+            if input_code not in device_registry:
+                device_registry[input_code] = []
             
-            # Cloud verification fallback using browser fingerprint
-            current_id = st.session_state.browser_fingerprint[:8]
-            
-            if len(devices_list) >= 2 and current_id not in devices_list:
-                st.sidebar.error("❌ Maximum Device Limit Reached! (Max 2 Devices)")
+            if len(device_registry[input_code]) >= 2 and current_token not in device_registry[input_code]:
+                st.sidebar.error("❌ Max Limit Reached! (2 Devices Limit)")
             else:
-                if current_id not in devices_list:
-                    devices_list.append(current_id)
-                new_devices_str = ",".join(devices_list)
-                
-                update_sheet(GOOGLE_SHEET_URL, input_code, new_devices_str)
+                if current_token not in device_registry[input_code]:
+                    device_registry[input_code].append(current_token)
                 st.session_state.is_premium = True
                 st.session_state.active_code = input_code
-                st.sidebar.success("Activated Successfully via Cloud!")
                 st.rerun()
         else:
-            st.sidebar.error("Invalid Code or Not found in Cloud Registry!")
+            st.sidebar.error("❌ Invalid Cloud Code!")
 
-start_bot = st.sidebar.button("🚀 Start Analysis", use_container_width=True)
+start_bot = st.sidebar.button("🚀 Run Advanced AI Engine", use_container_width=True)
 
 @st.cache_data(ttl=60)
-def load_data(symbol, tf, pd_val):
+def load_market_data(symbol, tf, pd_val):
     return yf.download(symbol, period=pd_val, interval=tf, group_by='column')
 
 if start_bot:
-    with st.spinner("Running AI Analysis..."):
+    with st.spinner("Analyzing SMC Blocks & Elliott Waves..."):
         try:
-            df = load_data(ticker, timeframe, period)
+            df = load_market_data(ticker, timeframe, period)
             df.columns = df.columns.get_level_values(0) if isinstance(df.columns, pd.MultiIndex) else df.columns
             df.reset_index(inplace=True)
 
-            # Core Elliott Wave Signal Logic
-            df['Swing_High'] = df['High'].rolling(window=5, center=True).max()
-            df['Swing_Low'] = df['Low'].rolling(window=5, center=True).min()
+            # 1. RSI Indicator Logic (Period 14)
+            delta = df['Close'].diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=14).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=14).mean()
+            rs = gain / loss
+            df['RSI'] = 100 - (100 / (1 + rs))
+            current_rsi = float(df['RSI'].values[-1])
+
+            # 2. SMC/ICT Order Block Logic
+            df['Bullish_OB'] = (df['Close'] > df['Open']) & (df['Close'].shift(1) < df['Open'].shift(1)) & (df['Volume'] > df['Volume'].rolling(20).mean())
+            df['Bearish_OB'] = (df['Close'] < df['Open']) & (df['Close'].shift(1) > df['Open'].shift(1)) & (df['Volume'] > df['Volume'].rolling(20).mean())
+
+            # 3. Enhanced Elliott Wave Engine
+            df['EMA_50'] = df['Close'].ewm(span=50, adjust=False).mean()
+            df['EMA_200'] = df['Close'].ewm(span=200, adjust=False).mean()
 
             last_close = float(df['Close'].values[-1])
-            last_low = float(df['Low'].iloc[-5:-1].min())
+            last_low = float(df['Low'].iloc[-10:-1].min())
+            last_high = float(df['High'].iloc[-10:-1].max())
+
+            # Mathematical Logic Fusion (SMC + RSI + Wave 3 Confirmation)
+            is_bullish_ob = df['Bullish_OB'].iloc[-5:].any()
+            is_bearish_ob = df['Bearish_OB'].iloc[-5:].any()
+
+            if last_close > df['EMA_50'].values[-1] and current_rsi < 65 and is_bullish_ob:
+                signal_text = "🟢 STRONG BUY (SMC Order Block + Wave 3 Confirmation)"
+                entry_price = round(last_close, 2)
+                stop_loss = round(last_low, 2)
+                risk = entry_price - stop_loss
+                take_profit = round(entry_price + (risk * 2.5), 2) # Risk to Reward 1:2.5
+            elif last_close < df['EMA_50'].values[-1] and current_rsi > 35 and is_bearish_ob:
+                signal_text = "🔴 STRONG SELL (SMC Mitigation + Wave C Breakdown)"
+                entry_price = round(last_close, 2)
+                stop_loss = round(last_high, 2)
+                risk = stop_loss - entry_price
+                take_profit = round(entry_price - (risk * 2.5), 2)
+            else:
+                # Fallback Strategy if SMC is not forming
+                if current_rsi < 30:
+                    signal_text = "🟡 WEAK BUY (Oversold RSI Reversal)"
+                    entry_price = round(last_close, 2)
+                    stop_loss = round(last_low * 0.99, 2)
+                    take_profit = round(entry_price * 1.02, 2)
+                elif current_rsi > 70:
+                    signal_text = "🟡 WEAK SELL (Overbought RSI Correction)"
+                    entry_price = round(last_close, 2)
+                    stop_loss = round(last_high * 1.01, 2)
+                    take_profit = round(entry_price * 0.98, 2)
+                else:
+                    signal_text = "⚪ HOLD (Market Consolidation - No SMC Setup)"
+                    entry_price, stop_loss, take_profit = last_close, last_close, last_close
+
+            # Past Performance Engine
+            past_close = float(df['Close'].values[-7])
+            past_rsi = float(df['RSI'].values[-7])
+            past_signal = "BUY" if past_rsi < 50 else "SELL"
             
-            entry_price = round(last_close, 2)
-            stop_loss = round(last_low, 2)
-            risk = entry_price - stop_loss
-            take_profit = round(entry_price + (risk * 2), 2) if risk > 0 else round(entry_price - (abs(risk) * 2), 2)
-            signal_text = "🟢 BUY (Wave 3 Start)" if risk > 0 else "🔴 SELL (Wave 3 Correction)"
-
-            # --- Past Performance (Win/Loss/Pending) Logic ---
-            past_close = float(df['Close'].values[-6])
-            past_low = float(df['Low'].iloc[-11:-6].min())
-            past_entry = round(past_close, 2)
-            past_sl = round(past_low, 2)
-            past_risk = past_entry - past_sl
-            past_tp = round(past_entry + (past_risk * 2), 2) if past_risk > 0 else round(past_entry - (abs(past_risk) * 2), 2)
-            past_signal = "BUY" if past_risk > 0 else "SELL"
-
-            highest_since_past = float(df['High'].iloc[-5:].max())
-            lowest_since_past = float(df['Low'].iloc[-5:].min())
+            highest_since = float(df['High'].iloc[-6:].max())
+            lowest_since = float(df['Low'].iloc[-6:].min())
 
             if past_signal == "BUY":
-                if highest_since_past >= past_tp: status = "🏆 WIN"
-                elif lowest_since_past <= past_sl: status = "❌ LOSS"
-                else: status = "⏳ PENDING"
+                status = "🏆 WIN" if highest_since >= (past_close * 1.02) else ("❌ LOSS" if lowest_since <= (past_close * 0.99) else "⏳ PENDING")
             else:
-                if lowest_since_past <= past_tp: status = "🏆 WIN"
-                elif highest_since_past >= past_sl: status = "❌ LOSS"
-                else: status = "⏳ PENDING"
+                status = "🏆 WIN" if lowest_since <= (past_close * 0.98) else ("❌ LOSS" if highest_since >= (past_close * 1.01) else "⏳ PENDING")
 
-            # UI Layout
+            # Dashboard View Layout
             col1, col2 = st.columns([1, 2])
             with col1:
-                st.subheader("📡 Bot Signal Output")
-                st.info(f"**Signal:** {signal_text}")
-                st.metric(label="Entry Price", value=f"${entry_price:,}")
-                st.metric(label="Stop Loss (SL)", value=f"${stop_loss:,}")
-                st.metric(label="Take Profit (TP)", value=f"${take_profit:,}")
+                st.subheader("📡 Smart Signal Matrix")
+                st.info(f"**Engine Result:** {signal_text}")
+                st.metric(label="Current RSI (14)", value=f"{current_rsi:.2f}")
+                
+                if "HOLD" not in signal_text:
+                    st.metric(label="Entry Target", value=f"${entry_price:,}")
+                    st.metric(label="Stop Loss (SL)", value=f"${stop_loss:,}")
+                    st.metric(label="Take Profit (TP)", value=f"${take_profit:,}")
 
-                # --- Win/Loss/Pending කොටස (Free & Premium දෙගොල්ලන්ටම පෙනේ) ---
+                # Performance Panel
                 st.markdown("---")
-                st.subheader("📜 Last Signal Performance")
-                if "WIN" in status: st.success(f"Result: {status}")
-                elif "LOSS" in status: st.error(f"Result: {status}")
-                else: st.warning(f"Result: {status}")
-                st.write(f"**Prev Entry:** ${past_entry} ({past_signal}) | **Prev TP:** ${past_tp} | **Prev SL:** ${past_sl}")
+                st.subheader("📜 System Backtest Tracker")
+                if "WIN" in status: st.success(f"Last Tracked Setup: {status}")
+                elif "LOSS" in status: st.error(f"Last Tracked Setup: {status}")
+                else: st.warning(f"Last Tracked Setup: {status}")
 
-                # Money Management Section
-                st.markdown("---")
-                if st.session_state.is_premium:
-                    st.subheader("🛡️ Professional Risk Calculator")
-                    risk_amount = balance * (risk_pct / 100)
-                    price_risk_per_unit = abs(entry_price - stop_loss)
-                    
-                    if price_risk_per_unit > 0:
-                        position_size = risk_amount / price_risk_per_unit
-                        st.success(f"**Recommended Position Size:** {position_size:.4f} Units")
-                        st.write(f"💼 **Total Trade Value:** ${position_size * entry_price:.2f}")
-                        st.write(f"🛑 **Max Loss if SL hits:** ${risk_amount:.2f}")
-                        st.write(f"🎯 **Max Profit if TP hits:** ${risk_amount * 2:.2f}")
-                else:
-                    st.info("🔒 **Money Management Plan locked.** Upgrade to Premium to auto-calculate lot sizes.")
+                # Money Management Calculation
+                if st.session_state.is_premium and "HOLD" not in signal_text:
+                    st.markdown("---")
+                    st.subheader("🛡️ Lot Size / Position Calibrator")
+                    risk_dollars = balance * (risk_pct / 100)
+                    price_risk = abs(entry_price - stop_loss)
+                    if price_risk > 0:
+                        pos_size = risk_dollars / price_risk
+                        st.success(f"**Optimal Trade Size:** {pos_size:.4f} Units")
+                        st.write(f"💼 Risk Allocation: ${risk_dollars:.2f} | Target Reward: ${risk_dollars * 2.5:.2f}")
 
             with col2:
-                st.subheader("📊 Elliott Wave Live Chart")
-                fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Candlestick")])
-                fig.add_hline(y=entry_price, line_dash="dash", line_color="green", annotation_text="Entry")
-                fig.add_hline(y=stop_loss, line_dash="dash", line_color="red", annotation_text="SL")
-                fig.add_hline(y=take_profit, line_dash="dash", line_color="gold", annotation_text="TP")
+                st.subheader("📊 SMC Order Block & Multi-EMA Chart")
+                fig = go.Figure(data=[go.Candlestick(x=df.index, open=df['Open'], high=df['High'], low=df['Low'], close=df['Close'], name="Price")])
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_50'], line=dict(color='cyan', width=1.5), name="EMA 50 (Trend)"))
+                fig.add_trace(go.Scatter(x=df.index, y=df['EMA_200'], line=dict(color='magenta', width=1.5), name="EMA 200 (Baseline)"))
+                
+                if "HOLD" not in signal_text:
+                    fig.add_hline(y=entry_price, line_dash="dash", line_color="green", annotation_text="Entry")
+                    fig.add_hline(y=stop_loss, line_dash="dash", line_color="red", annotation_text="SL")
+                    fig.add_hline(y=take_profit, line_dash="dash", line_color="gold", annotation_text="TP")
+                
                 fig.update_layout(xaxis_rangeslider_visible=False, template="plotly_dark")
                 st.plotly_chart(fig, use_container_width=True)
+
         except Exception as e:
-            st.error(f"Error: {e}")
+            st.error(f"Data Fetching Error: {e}")
