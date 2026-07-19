@@ -14,7 +14,7 @@ st.title("🦅 EagleEye AI Institutional Bot (SMC + ICT + Elliott Wave + RSI)")
 st.write("Professional Algorithmic Signal Engine with Advanced Smart Money Concept Logic")
 
 # --- Google Sheet Link ---
-GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1FXFhTbaM7wAGjdpnQj3O_UNkFTEGHtHoYmPMDg-y_jQ/edit"
+GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1FXFhTbaM7wAGJdpnQj3O_UNkFTEGHtHoYmPMDg-x4OA/edit?usp=sharing"
 
 # Browser Security Fingerprint
 if "user_device_token" not in st.session_state:
