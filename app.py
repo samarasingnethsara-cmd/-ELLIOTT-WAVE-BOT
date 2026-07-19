@@ -17,7 +17,7 @@ st.write("Multi-User Professional Market Analysis & Centralized Risk Management 
 if "GOOGLE_SHEET_URL" in st.secrets:
     GOOGLE_SHEET_URL = st.secrets["GOOGLE_SHEET_URL"]
 else:
-    GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1FXFhTbaM7wAGjdpnQj3O_UNkFTEGHtHoYmPMDg-y_jQ/edit"
+    GOOGLE_SHEET_URL = "https://docs.google.com/spreadsheets/d/1FXFhTbaM7wAGJdpnQj3O_UNkFTEGHtHoYmPMDg-x4OA/edit?usp=sharing"
 
 # User unique tracking via session (Browser level)
 if "browser_fingerprint" not in st.session_state:
